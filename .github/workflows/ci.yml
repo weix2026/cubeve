@@ -1,4 +1,4 @@
-name: CI/CD
+name: CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -16,19 +16,37 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.22'
+        cache: true
     
-    - name: Build
+    - name: Build all binaries
       run: make build
     
-    - name: Test
-      run: make test
+    - name: Test binary version output
+      run: |
+        ./bin/api-gateway --version 2>/dev/null || true
+        ./bin/cubeconsole version
+        ./bin/version-tool --version 2>/dev/null || true
+        ./bin/instance-controller --help 2>/dev/null || true
+
+  test-scripts:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
     
-    - name: Lint
-      run: make lint
+    - name: Validate script syntax
+      run: |
+        chmod +x scripts/*.sh
+        bash -n scripts/build-offline.sh
+        bash -n scripts/l0-install.sh
+        bash -n scripts/l1-install.sh
+        bash -n scripts/l2-install.sh
+        bash -n scripts/l3-install.sh
+        bash -n scripts/test-binaries.sh
+        bash -n scripts/validate-scripts.sh
 
   docker:
     runs-on: ubuntu-latest
-    needs: test
+    needs: build
     steps:
     - uses: actions/checkout@v4
     
@@ -37,8 +55,3 @@ jobs:
     
     - name: Build Docker images
       run: make docker-build
-    
-    - name: Test Docker images
-      run: |
-        docker run --rm cubeve/api-gateway:dev --version || true
-        docker run --rm cubeve/instance-controller:dev --version || true

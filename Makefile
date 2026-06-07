@@ -9,7 +9,7 @@ GO_BUILD := GOSUMDB=off GOPROXY=off go build -mod=mod -ldflags "$(LDFLAGS)"
 
 all: build
 
-build: build-api-gateway build-cubeconsole build-version-tool build-cubesandbox-operator
+build: build-api-gateway build-cubeconsole build-version-tool build-cubesandbox-operator build-instance-controller
 
 build-api-gateway:
 	@echo "Building api-gateway..."
@@ -26,6 +26,10 @@ build-version-tool:
 build-cubesandbox-operator:
 	@echo "Building cubesandbox-operator..."
 	$(GO_BUILD) -o bin/cubesandbox-operator ./cmd/cubesandbox-operator
+
+build-instance-controller:
+	@echo "Building instance-controller..."
+	$(GO_BUILD) -o bin/instance-controller ./cmd/instance-controller
 
 build-offline:
 	@echo "Building offline (network restricted)..."
