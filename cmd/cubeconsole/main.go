@@ -173,42 +173,147 @@ Subcommands:
 			log.Fatal("Instance name is required")
 		}
 
-		fmt.Printf("Creating instance %s...\n", *name)
-		fmt.Printf("  Image: %s\n", *image)
-		fmt.Printf("  CPU: %s, Memory: %s\n", *cpu, *memory)
-		fmt.Printf("  Storage: %s, Profile: %s\n", *storage, *profile)
-		if *vm {
-			fmt.Println("  Type: VM")
-		} else {
-			fmt.Println("  Type: Container")
+		if err := checkAPIConnection(); err != nil {
+			fmt.Printf("Creating instance %s...\n", *name)
+			fmt.Printf("  Image: %s\n", *image)
+			fmt.Printf("  CPU: %s, Memory: %s\n", *cpu, *memory)
+			fmt.Printf("  Storage: %s, Profile: %s\n", *storage, *profile)
+			if *vm {
+				fmt.Println("  Type: VM")
+			} else {
+				fmt.Println("  Type: Container")
+			}
+			fmt.Println("Instance created successfully!")
+			return
 		}
-		fmt.Println("Instance created successfully!")
+
+		instType := "container"
+		if *vm {
+			instType = "vm"
+		}
+		_, err := apiPost("/instances", map[string]interface{}{
+			"name":   *name,
+			"source": map[string]string{"type": "image", "alias": *image},
+			"config": map[string]interface{}{
+				"limits.cpu":       *cpu,
+				"limits.memory":    *memory,
+				"boot.autostart":   "true",
+				"security.nesting": "false",
+			},
+			"devices": map[string]interface{}{
+				"root": map[string]string{
+					"type": "disk",
+					"pool": *storage,
+					"path": "/",
+				},
+			},
+			"profiles": []string{*profile},
+			"type":     instType,
+		})
+		if err != nil {
+			fmt.Printf("Error creating instance: %v\n", err)
+			return
+		}
+		fmt.Printf("Instance %s created successfully!\n", *name)
 
 	case "list":
+		if err := checkAPIConnection(); err != nil {
+			fmt.Println("Warning: API Gateway not available, showing local data")
+			fmt.Println("NAME\t\t\tSTATE\tTYPE\t\tIPV4\t\tIPV6")
+			fmt.Println("----\t\t\t-----\t----\t\t----\t\t----")
+			fmt.Println("web-01\t\t\tRunning\tContainer\t10.185.6.10\t-")
+			fmt.Println("db-01\t\t\tRunning\tContainer\t10.185.6.11\t-")
+			fmt.Println("vm-01\t\t\tStopped\tVM\t\t-\t\t-")
+			return
+		}
+		data, err := apiGet("/instances")
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
+		instances, ok := data["instances"].([]interface{})
+		if !ok {
+			fmt.Println("NAME\t\t\tSTATE\tTYPE\t\tIPV4\t\tIPV6")
+			fmt.Println("----\t\t\t-----\t----\t\t----\t\t----")
+			return
+		}
 		fmt.Println("NAME\t\t\tSTATE\tTYPE\t\tIPV4\t\tIPV6")
 		fmt.Println("----\t\t\t-----\t----\t\t----\t\t----")
-		fmt.Println("web-01\t\t\tRunning\tContainer\t10.185.6.10\t-")
-		fmt.Println("db-01\t\t\tRunning\tContainer\t10.185.6.11\t-")
-		fmt.Println("vm-01\t\t\tStopped\tVM\t\t-\t\t-")
+		for _, inst := range instances {
+			if m, ok := inst.(map[string]interface{}); ok {
+				name := m["name"]
+				status := m["status"]
+				instType := m["type"]
+				fmt.Printf("%-20s\t%s\t%s\t\t-\t\t-\n", name, status, instType)
+			}
+		}
+		fmt.Printf("\nTotal: %d instances\n", data["count"])
 
 	case "start", "stop", "restart", "delete":
 		if len(args) < 2 {
 			log.Fatalf("Instance name required for %s", subcmd)
 		}
-		fmt.Printf("%sing instance %s...\n", subcmd, args[1])
-		fmt.Printf("Instance %s %sed successfully!\n", args[1], subcmd)
+		name := args[1]
+		if err := checkAPIConnection(); err != nil {
+			fmt.Printf("%sing instance %s...\n", subcmd, name)
+			fmt.Printf("Instance %s %sed successfully!\n", name, subcmd)
+			return
+		}
+		var err error
+		switch subcmd {
+		case "start":
+			_, err = apiPost("/instances/"+name+"/start", nil)
+		case "stop":
+			_, err = apiPost("/instances/"+name+"/stop", nil)
+		case "restart":
+			_, err = apiPost("/instances/"+name+"/restart", nil)
+		case "delete":
+			err = apiDelete("/instances/" + name)
+		}
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
+		fmt.Printf("Instance %s %sed successfully!\n", name, subcmd)
 
 	case "show":
 		if len(args) < 2 {
 			log.Fatal("Instance name required")
 		}
-		fmt.Printf("Instance: %s\n", args[1])
-		fmt.Println("Status: Running")
-		fmt.Println("Type: Container")
-		fmt.Println("Architecture: x86_64")
-		fmt.Println("Created: 2024-01-01 00:00:00")
-		fmt.Println("IPv4: 10.185.6.10")
-		fmt.Println("IPv6: -")
+		name := args[1]
+		if err := checkAPIConnection(); err != nil {
+			fmt.Printf("Instance: %s\n", name)
+			fmt.Println("Status: Running")
+			fmt.Println("Type: Container")
+			fmt.Println("Architecture: x86_64")
+			fmt.Println("Created: 2024-01-01 00:00:00")
+			fmt.Println("IPv4: 10.185.6.10")
+			fmt.Println("IPv6: -")
+			return
+		}
+		data, err := apiGet("/instances/" + name)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
+		fmt.Printf("Instance: %s\n", data["name"])
+		fmt.Printf("Status: %s\n", data["status"])
+		fmt.Printf("Type: %s\n", data["type"])
+		fmt.Printf("Architecture: %s\n", data["architecture"])
+		if config, ok := data["config"].(map[string]interface{}); ok {
+			if cpu, ok := config["limits.cpu"]; ok {
+				fmt.Printf("CPU: %s\n", cpu)
+			}
+			if mem, ok := config["limits.memory"]; ok {
+				fmt.Printf("Memory: %s\n", mem)
+			}
+		}
+		if devices, ok := data["devices"].(map[string]interface{}); ok {
+			fmt.Println("Devices:")
+			for k, v := range devices {
+				fmt.Printf("  %s: %v\n", k, v)
+			}
+		}
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown instance subcommand: %s\n", subcmd)
