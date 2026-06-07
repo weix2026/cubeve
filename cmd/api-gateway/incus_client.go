@@ -1,4 +1,4 @@
-package api
+package main
 
 import (
 	"bytes"
@@ -34,7 +34,7 @@ func NewIncusClient(endpoint, apiKey string) *IncusClient {
 				return d.DialContext(ctx, "unix", socketPath)
 			},
 		}
-		baseURL = "http://localhost" // Unix socket doesn't use host, but we need a valid URL
+		baseURL = "http://localhost" // Unix socket doesn't use host
 	}
 
 	return &IncusClient{
