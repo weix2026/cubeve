@@ -174,7 +174,7 @@ Subcommands:
 		}
 
 		if err := checkAPIConnection(); err != nil {
-			fmt.Printf("Creating instance %s...\n", *name)
+			fmt.Printf("Creating instance %s (offline mode)...\n", *name)
 			fmt.Printf("  Image: %s\n", *image)
 			fmt.Printf("  CPU: %s, Memory: %s\n", *cpu, *memory)
 			fmt.Printf("  Storage: %s, Profile: %s\n", *storage, *profile)
@@ -189,11 +189,14 @@ Subcommands:
 
 		instType := "container"
 		if *vm {
-			instType = "vm"
+			instType = "virtual-machine"
 		}
 		_, err := apiPost("/instances", map[string]interface{}{
-			"name":   *name,
-			"source": map[string]string{"type": "image", "alias": *image},
+			"name": *name,
+			"source": map[string]string{
+				"type":  "image",
+				"alias": *image,
+			},
 			"config": map[string]interface{}{
 				"limits.cpu":       *cpu,
 				"limits.memory":    *memory,
