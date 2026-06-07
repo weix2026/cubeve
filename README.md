@@ -114,6 +114,21 @@ cubeve/
 | Confidential Computing | TEE / CoCo | Hardware-based isolation |
 | Management Plane | CubeConsole | Web UI + CLI for operations |
 
+## 🏗️ Build Status
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| **api-gateway** | ✅ Ready | Incus REST API integration, health/ready checks, 14 API endpoints |
+| **cubeconsole** | ✅ Ready | CLI tool calling API Gateway, instance CRUD operations |
+| **version-tool** | ✅ Ready | Version management utility |
+| **cubesandbox-operator** | ✅ Ready | Sandbox VM operator (stub, functional) |
+| **instance-controller** | ⚠️ Stub | Compiles and runs, K8s controller logic pending |
+
+**Current Test Results:**
+- L0 API Integration Tests: **14/14 passed** ✅
+- Script Syntax Validation: **7/7 passed** ✅
+- Binary Build: **5/5 succeeded** ✅
+
 ## 🛠️ Development
 
 ### Prerequisites
