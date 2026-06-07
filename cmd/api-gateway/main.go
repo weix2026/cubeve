@@ -22,7 +22,7 @@ func main() {
 		grpcAddr   = flag.String("grpc", ":50051", "gRPC listen address")
 		metricsAddr = flag.String("metrics", ":9090", "Metrics listen address")
 		incusEndpoint = flag.String("incus", "unix:///var/lib/incus/unix.socket", "Incus endpoint")
-		k8sConfig = flag.String("k8s-config", "", "Kubernetes config path")
+		// k8sConfig = flag.String("k8s-config", "", "Kubernetes config path")
 	)
 	flag.Parse()
 

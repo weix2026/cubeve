@@ -361,6 +361,10 @@ func monitorCmd(args []string) {
 	node := fs.String("node", "", "Monitor specific node")
 	fs.Parse(args)
 
+	if *node != "" {
+		fmt.Printf("Monitoring node: %s\n", *node)
+	}
+
 	fmt.Println("Resource Monitoring")
 	fmt.Println("===================")
 	fmt.Println()
