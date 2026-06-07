@@ -1,0 +1,43 @@
+# CubeVE Environment Configuration
+
+# Development Environment
+dev:
+  incus:
+    endpoint: "unix:///var/lib/incus/unix.socket"
+    storage_pool: "default"
+    network: "incusbr0"
+  kubernetes:
+    enabled: false
+  monitoring:
+    enabled: false
+
+# Testing Environment
+test:
+  incus:
+    endpoint: "unix:///var/lib/incus/unix.socket"
+    storage_pool: "zfs-pool"
+    network: "incusbr0"
+  kubernetes:
+    enabled: true
+    kubeconfig: "~/.kube/config"
+  monitoring:
+    enabled: true
+
+# Production Environment
+prod:
+  incus:
+    endpoint: "https://incus.cubeve.local:8443"
+    storage_pool: "ceph-pool"
+    network: "ovn-network"
+  kubernetes:
+    enabled: true
+    kubeconfig: "/etc/kubernetes/admin.conf"
+  monitoring:
+    enabled: true
+  tee:
+    enabled: true
+  network:
+    ovn:
+      enabled: true
+    cube_vs:
+      enabled: true

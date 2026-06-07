@@ -1,0 +1,126 @@
+# CubeVE Configuration
+
+# API Gateway Configuration
+api_gateway:
+  listen: ":8080"
+  grpc: ":50051"
+  metrics: ":9090"
+  tls:
+    enabled: false
+    cert: "/etc/cubeve/certs/api.crt"
+    key: "/etc/cubeve/certs/api.key"
+  cors:
+    enabled: true
+    origins: ["*"]
+  rate_limit:
+    enabled: true
+    requests_per_second: 100
+
+# Instance Controller Configuration
+instance_controller:
+  leader_election: true
+  watch_namespace: ""
+  sync_period: "30s"
+  retry_backoff: "5s"
+  max_retries: 3
+
+# CubeSandbox Operator Configuration
+cube_sandbox:
+  pool_size: 2000
+  prewarm: true
+  cow_clone: true
+  max_concurrent_boot: 100
+  default_vcpus: 2
+  default_memory_mb: 512
+  kernel_path: "/opt/cubesandbox/vmlinux-6.6.0"
+  rootfs_template: "/opt/cubesandbox/rootfs-template.img"
+  network_backend: "cube-vs"
+  xdp_enabled: true
+
+# Incus Configuration
+incus:
+  endpoint: "unix:///var/lib/incus/unix.socket"
+  storage_pool: "zfs-pool"
+  network: "incusbr0"
+  profile: "default"
+
+# Kata Containers Configuration
+kata:
+  runtime_path: "/usr/bin/kata-runtime"
+  config_path: "/etc/kata-containers/configuration.toml"
+  default_vcpus: 2
+  default_memory: "2048Mi"
+
+# Kubernetes Configuration
+kubernetes:
+  kubeconfig: ""
+  namespace: "cubeve"
+  service_account: "cubeve"
+
+# Network Configuration
+network:
+  cni:
+    plugin: "cilium"
+    config_path: "/etc/cni/net.d"
+  ovn:
+    enabled: false
+    northbound: "ssl:127.0.0.1:6641"
+    southbound: "ssl:127.0.0.1:6642"
+  cube_vs:
+    enabled: false
+    interface: "eth0"
+    xdp_mode: "generic"
+
+# Storage Configuration
+storage:
+  backend: "ceph"
+  ceph:
+    monitors: ["10.0.0.1:6789", "10.0.0.2:6789", "10.0.0.3:6789"]
+    pool: "cubeve"
+    user: "admin"
+    keyring: "/etc/ceph/ceph.client.admin.keyring"
+  local:
+    pool: "zfs-pool"
+    path: "/var/lib/cubeve/storage"
+
+# TEE/Confidential Computing Configuration
+tee:
+  enabled: false
+  coco:
+    enabled: false
+    kbs_url: "https://kbs.cubeve.local:8080"
+    attestation_agent: "/usr/local/bin/attestation-agent"
+
+# Monitoring Configuration
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+    path: "/metrics"
+  grafana:
+    enabled: false
+    url: "http://grafana.cubeve.local:3000"
+  jaeger:
+    enabled: false
+    endpoint: "http://jaeger.cubeve.local:14268"
+
+# Logging Configuration
+logging:
+  level: "info"
+  format: "json"
+  output: "stdout"
+  file: "/var/log/cubeve/cubeve.log"
+
+# Security Configuration
+security:
+  rbac:
+    enabled: true
+  tls:
+    enabled: false
+    cert: "/etc/cubeve/certs/server.crt"
+    key: "/etc/cubeve/certs/server.key"
+  oauth2:
+    enabled: false
+    issuer: "https://auth.cubeve.local"
+    client_id: "cubeve"
+    client_secret: ""
