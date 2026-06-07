@@ -1,0 +1,265 @@
+# CubeSandbox Runtime Pool
+# 极速沙箱资源池配置 - 预置化实现
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cubesandbox
+  labels:
+    app.kubernetes.io/name: cubesandbox
+    app.kubernetes.io/part-of: cubeve
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cubesandbox-config
+  namespace: cubesandbox
+data:
+  config.toml: |
+    [runtime]
+    # 资源池大小 - 预置化 VM 数量
+    pool_size = 2000
+    # 是否预预热
+    prewarm = true
+    # 是否启用 CoW 克隆
+    cow_clone = true
+    # 最大并发启动数
+    max_concurrent_boot = 100
+    
+    [vm]
+    # 默认 vCPU 数
+    vcpus = 2
+    # 默认内存 (MB)
+    memory_mb = 512
+    # 内核路径
+    kernel_path = "/opt/cubesandbox/vmlinux-6.6.0"
+    # 根文件系统模板
+    rootfs_template = "/opt/cubesandbox/rootfs-template.img"
+    # 设备模型 - 精简 virtio
+    devices = ["virtio-net", "virtio-blk", "virtio-rng", "virtio-console"]
+    
+    [network]
+    # 后端类型: cube-vs, tap, bridge
+    backend = "cube-vs"
+    # 是否启用 XDP 加速
+    xdp_enabled = true
+    # MTU
+    mtu = 1500
+    
+    [agent]
+    # 监听地址
+    listen = "vsock:2:8080"
+    # 协议: ttrpc, grpc
+    protocol = "ttrpc"
+    # 心跳间隔 (秒)
+    heartbeat_interval = 5
+    
+    [storage]
+    # 存储类型: overlayfs, virtiofs, tmpfs
+    type = "overlayfs"
+    # 工作目录
+    workdir = "/var/lib/cubesandbox/instances"
+    
+    [metrics]
+    # 是否启用指标导出
+    enabled = true
+    # 端口
+    port = 9100
+    # 路径
+    path = "/metrics"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cubesandbox-operator
+  namespace: cubesandbox
+  labels:
+    app.kubernetes.io/name: cubesandbox-operator
+    app.kubernetes.io/component: control-plane
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cubesandbox-operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cubesandbox-operator
+    spec:
+      serviceAccountName: cubesandbox-operator
+      containers:
+      - name: operator
+        image: cubeve/cubesandbox-operator:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: api
+          containerPort: 8443
+          protocol: TCP
+        - name: metrics
+          containerPort: 9100
+          protocol: TCP
+        env:
+        - name: RUST_LOG
+          value: "info"
+        - name: POOL_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: cubesandbox-config
+              key: pool_size
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: api
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: api
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:
+        - name: config
+          mountPath: /etc/cubesandbox
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: cubesandbox-config
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cubesandbox-operator
+  namespace: cubesandbox
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cubesandbox-operator
+rules:
+- apiGroups: ["cube.io"]
+  resources: ["instances", "instances/status", "sandboxpools", "sandboxpools/status"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "events"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["daemonsets", "deployments", "replicasets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["node.k8s.io"]
+  resources: ["runtimeclasses"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cubesandbox-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cubesandbox-operator
+subjects:
+- kind: ServiceAccount
+  name: cubesandbox-operator
+  namespace: cubesandbox
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cubesandbox-api
+  namespace: cubesandbox
+  labels:
+    app.kubernetes.io/name: cubesandbox-api
+spec:
+  selector:
+    app.kubernetes.io/name: cubesandbox-operator
+  ports:
+  - name: https
+    port: 8443
+    targetPort: 8443
+    protocol: TCP
+  - name: metrics
+    port: 9100
+    targetPort: 9100
+    protocol: TCP
+  type: ClusterIP
+---
+# VM Pool DaemonSet - 每个节点上的预置化资源池
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cubesandbox-vmpool
+  namespace: cubesandbox
+  labels:
+    app.kubernetes.io/name: cubesandbox-vmpool
+    app.kubernetes.io/component: data-plane
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cubesandbox-vmpool
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cubesandbox-vmpool
+    spec:
+      hostNetwork: true
+      containers:
+      - name: vmpool
+        image: cubeve/cubesandbox-vmpool:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POOL_SIZE
+          value: "2000"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "1000m"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+        volumeMounts:
+        - name: dev-kvm
+          mountPath: /dev/kvm
+        - name: config
+          mountPath: /etc/cubesandbox
+          readOnly: true
+        - name: instances
+          mountPath: /var/lib/cubesandbox/instances
+        - name: images
+          mountPath: /opt/cubesandbox
+      volumes:
+      - name: dev-kvm
+        hostPath:
+          path: /dev/kvm
+          type: CharDevice
+      - name: config
+        configMap:
+          name: cubesandbox-config
+      - name: instances
+        hostPath:
+          path: /var/lib/cubesandbox/instances
+          type: DirectoryOrCreate
+      - name: images
+        hostPath:
+          path: /opt/cubesandbox
+          type: DirectoryOrCreate
+      nodeSelector:
+        cubesandbox.io/pool-ready: "true"
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"

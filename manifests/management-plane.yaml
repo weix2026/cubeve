@@ -1,0 +1,291 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cube-console
+  labels:
+    app.kubernetes.io/name: cube-console
+    app.kubernetes.io/part-of: cubeve
+---
+# API Gateway
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cubeapi
+  namespace: cube-console
+  labels:
+    app.kubernetes.io/name: cubeapi
+    app.kubernetes.io/component: api-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cubeapi
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cubeapi
+    spec:
+      containers:
+      - name: api
+        image: cubeve/api-gateway:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: rest
+          containerPort: 8080
+          protocol: TCP
+        - name: grpc
+          containerPort: 50051
+          protocol: TCP
+        - name: websocket
+          containerPort: 8081
+          protocol: TCP
+        env:
+        - name: INCUS_ENDPOINT
+          value: "https://incus-service:8443"
+        - name: K8S_ENDPOINT
+          value: "https://kubernetes.default:443"
+        - name: KUBECONFIG
+          value: "/etc/kubernetes/admin.conf"
+        - name: API_VERSION
+          value: "v1"
+        - name: LOG_LEVEL
+          value: "info"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: rest
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: rest
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:
+        - name: k8s-config
+          mountPath: /etc/kubernetes
+          readOnly: true
+        - name: incus-cert
+          mountPath: /etc/incus
+          readOnly: true
+        - name: tls
+          mountPath: /etc/tls
+          readOnly: true
+      volumes:
+      - name: k8s-config
+        hostPath:
+          path: /etc/kubernetes
+      - name: incus-cert
+        secret:
+          secretName: incus-client-cert
+      - name: tls
+        secret:
+          secretName: cubeapi-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cubeapi
+  namespace: cube-console
+spec:
+  selector:
+    app.kubernetes.io/name: cubeapi
+  ports:
+  - name: rest
+    port: 8080
+    targetPort: 8080
+  - name: grpc
+    port: 50051
+    targetPort: 50051
+  - name: websocket
+    port: 8081
+    targetPort: 8081
+  type: ClusterIP
+---
+# Web UI
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cubeconsole
+  namespace: cube-console
+  labels:
+    app.kubernetes.io/name: cubeconsole
+    app.kubernetes.io/component: web-ui
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cubeconsole
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cubeconsole
+    spec:
+      containers:
+      - name: frontend
+        image: cubeve/console-frontend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        env:
+        - name: API_BASE_URL
+          value: "https://cubeapi:8080"
+        - name: WS_BASE_URL
+          value: "wss://cubeapi:8081"
+        - name: E2B_COMPATIBLE
+          value: "true"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+      - name: backend
+        image: cubeve/console-backend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: api
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: API_ENDPOINT
+          value: "http://cubeapi:8080"
+        - name: K8S_CONFIG
+          value: "/etc/kubernetes/admin.conf"
+        - name: INCUS_CONFIG
+          value: "/etc/incus/incus-client.crt"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: k8s-config
+          mountPath: /etc/kubernetes
+          readOnly: true
+        - name: incus-cert
+          mountPath: /etc/incus
+          readOnly: true
+      volumes:
+      - name: k8s-config
+        hostPath:
+          path: /etc/kubernetes
+      - name: incus-cert
+        secret:
+          secretName: incus-client-cert
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cubeconsole
+  namespace: cube-console
+spec:
+  selector:
+    app.kubernetes.io/name: cubeconsole
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+  - name: api
+    port: 8080
+    targetPort: 8080
+  type: NodePort
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cubeconsole
+  namespace: cube-console
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - console.cubeve.local
+    secretName: cubeconsole-tls
+  rules:
+  - host: console.cubeve.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: cubeconsole
+            port:
+              number: 80
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: cubeapi
+            port:
+              number: 8080
+      - path: /ws
+        pathType: Prefix
+        backend:
+          service:
+            name: cubeapi
+            port:
+              number: 8081
+---
+# RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cubeconsole
+  namespace: cube-console
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cubeconsole
+rules:
+- apiGroups: ["cube.io"]
+  resources: ["instances", "instances/status"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["kubevirt.io"]
+  resources: ["virtualmachines", "virtualmachineinstances"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods", "services", "events", "namespaces"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "daemonsets", "replicasets"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cubeconsole
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cubeconsole
+subjects:
+- kind: ServiceAccount
+  name: cubeconsole
+  namespace: cube-console

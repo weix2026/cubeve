@@ -1,0 +1,225 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cube-network
+  labels:
+    app.kubernetes.io/name: cube-network
+    app.kubernetes.io/part-of: cubeve
+---
+# Cilium CNI 配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cilium-config
+  namespace: kube-system
+data:
+  # eBPF 加速
+  bpf-map-dynamic-size-ratio: "0.0025"
+  # 启用 XDP
+  enable-xdp: "true"
+  # 启用 NodePort
+  enable-node-port: "true"
+  # 替换 kube-proxy
+  kube-proxy-replacement: "strict"
+  # 启用 Hubble
+  enable-hubble: "true"
+  hubble-listen-address: ":4244"
+  # 启用带宽管理
+  enable-bandwidth-manager: "true"
+  # IPv4/IPv6
+  enable-ipv4: "true"
+  enable-ipv6: "false"
+  # 隧道模式
+  tunnel-protocol: "geneve"
+  # 身份分配模式
+  identity-allocation-mode: "crd"
+  # 启用 L7 代理
+  enable-l7-proxy: "true"
+  # 启用 Ingress Controller
+  enable-ingress-controller: "true"
+  # 启用 Gateway API
+  enable-gateway-api: "true"
+  # 启用 WireGuard 加密
+  enable-wireguard: "true"
+  enable-wireguard-userspace-fallback: "true"
+  # 监控
+  prometheus-serve-addr: ":9090"
+  operator-prometheus-serve-addr: ":9090"
+  # 启用 ClusterMesh
+  cluster-id: "1"
+  cluster-name: "cube-cluster"
+---
+# OVN 网络配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ovn-config
+  namespace: cube-network
+data:
+  ovn-northd-db: "nb:unix:/var/run/ovn/ovnnb_db.sock,sb:unix:/var/run/ovn/ovnsb_db.sock"
+  ovn-northd-log: "syslog:info"
+  ovn-controller-log: "syslog:info"
+  # VPC 配置
+  vpc-default: |
+    name: default-vpc
+    cidr: 10.100.0.0/16
+    subnets:
+      - name: default-subnet
+        cidr: 10.100.1.0/24
+        gateway: 10.100.1.1
+        dhcp: true
+      - name: compute-subnet
+        cidr: 10.100.2.0/24
+        gateway: 10.100.2.1
+        dhcp: true
+      - name: storage-subnet
+        cidr: 10.100.3.0/24
+        gateway: 10.100.3.1
+        dhcp: true
+    security_groups:
+      - name: default-sg
+        rules:
+          - direction: ingress
+            protocol: tcp
+            port: 22
+            action: allow
+          - direction: ingress
+            protocol: tcp
+            port: 80
+            action: allow
+          - direction: ingress
+            protocol: tcp
+            port: 443
+            action: allow
+          - direction: egress
+            protocol: any
+            action: allow
+---
+# CubeVS eBPF/XDP 配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cubesvs-config
+  namespace: kube-system
+data:
+  config.yaml: |
+    mode: xdp
+    interfaces:
+      - eth0
+    xdp_mode: driver
+    # 是否启用 AF_XDP
+    af_xdp: false
+    # 转发模式: native, generic, offload
+    xdp_mode: native
+    # eBPF 程序配置
+    bpf:
+      map_size: 65536
+      map_type: hash
+      # 并发连接数
+      max_connections: 100000
+    # 性能调优
+    performance:
+      # 单核 PPS 目标
+      target_pps: 24000000
+      # 批处理大小
+      batch_size: 64
+      # 轮询间隔 (ns)
+      poll_interval: 100
+    # 与 Cilium 集成
+    cilium_integration:
+      enabled: true
+      cni_path: /opt/cni/bin
+      cilium_socket: /var/run/cilium/cilium.sock
+    metrics:
+      enabled: true
+      port: 9090
+---
+# CubeVS DaemonSet
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cubesvs
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: cubesvs
+    app.kubernetes.io/part-of: cubeve
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cubesvs
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cubesvs
+    spec:
+      hostNetwork: true
+      hostPID: true
+      containers:
+      - name: cubesvs
+        image: cubeve/cubesvs:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+              - BPF
+              - NET_ADMIN
+              - NET_RAW
+              - SYS_ADMIN
+              - SYS_RESOURCE
+              - IPC_LOCK
+              - PERFMON
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: CUBEVS_MODE
+          value: "xdp"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "500m"
+          limits:
+            memory: "512Mi"
+            cpu: "2000m"
+        volumeMounts:
+        - name: bpf
+          mountPath: /sys/fs/bpf
+        - name: cgroup
+          mountPath: /sys/fs/cgroup
+        - name: cilium-run
+          mountPath: /var/run/cilium
+        - name: config
+          mountPath: /etc/cubesvs
+          readOnly: true
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "cat /sys/fs/bpf/cubesvs_health || exit 1"
+          initialDelaySeconds: 10
+          periodSeconds: 30
+      volumes:
+      - name: bpf
+        hostPath:
+          path: /sys/fs/bpf
+          type: DirectoryOrCreate
+      - name: cgroup
+        hostPath:
+          path: /sys/fs/cgroup
+          type: Directory
+      - name: cilium-run
+        hostPath:
+          path: /var/run/cilium
+          type: DirectoryOrCreate
+      - name: config
+        configMap:
+          name: cubesvs-config
+      nodeSelector:
+        cubesvs.io/enabled: "true"
+      tolerations:
+      - key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+        effect: "NoSchedule"

@@ -1,0 +1,95 @@
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: cube
+  labels:
+    app.kubernetes.io/name: cube
+    app.kubernetes.io/part-of: cubeve
+handler: io.containerd.cube.v2
+scheduling:
+  nodeSelector:
+    cubesandbox.io/runtime: "true"
+overhead:
+  podFixed:
+    memory: "256Mi"
+    cpu: "250m"
+  podFixed:
+    memory: "256Mi"
+    cpu: "250m"
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: kata
+  labels:
+    app.kubernetes.io/name: kata
+    app.kubernetes.io/part-of: cubeve
+handler: io.containerd.kata.v2
+scheduling:
+  nodeSelector:
+    katacontainers.io/kata-runtime: "true"
+overhead:
+  podFixed:
+    memory: "512Mi"
+    cpu: "500m"
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: kata-clh
+  labels:
+    app.kubernetes.io/name: kata-clh
+    app.kubernetes.io/part-of: cubeve
+handler: io.containerd.kata-clh.v2
+scheduling:
+  nodeSelector:
+    katacontainers.io/kata-runtime: "true"
+overhead:
+  podFixed:
+    memory: "512Mi"
+    cpu: "500m"
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: kata-tee
+  labels:
+    app.kubernetes.io/name: kata-tee
+    app.kubernetes.io/part-of: cubeve
+handler: io.containerd.kata-tee.v2
+scheduling:
+  nodeSelector:
+    tee-enabled: "true"
+overhead:
+  podFixed:
+    memory: "1Gi"
+    cpu: "1000m"
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: incus-lxc
+  labels:
+    app.kubernetes.io/name: incus-lxc
+    app.kubernetes.io/part-of: cubeve
+handler: io.containerd.incus.v2
+scheduling:
+  nodeSelector:
+    incus.io/runtime: "true"
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: incus-vm
+  labels:
+    app.kubernetes.io/name: incus-vm
+    app.kubernetes.io/part-of: cubeve
+handler: io.containerd.incus-vm.v2
+scheduling:
+  nodeSelector:
+    incus.io/runtime: "true"
+    kvm-enabled: "true"
+overhead:
+  podFixed:
+    memory: "1Gi"
+    cpu: "1000m"
