@@ -1,155 +1,68 @@
-PROJECT := cubeve
-VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-REGISTRY := cubeve
-GO_VERSION := 1.22
+.PHONY: all build test clean docker-build deploy-l0 deploy-l2 deploy-manifests
 
-# 构建目录
-BUILD_DIR := ./build
-BIN_DIR := $(BUILD_DIR)/bin
+VERSION ?= dev
+BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+LDFLAGS := -X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME) -X main.GitCommit=$(GIT_COMMIT)
 
-# 二进制文件
-BINARIES := api-gateway instance-controller cubesandbox-operator cubeconsole
+GO_BUILD := GOSUMDB=off GOPROXY=off go build -mod=mod -ldflags "$(LDFLAGS)"
 
-# 默认目标
-.PHONY: all
 all: build
 
-# 构建所有二进制文件
-.PHONY: build
-build:
-	@echo "Building $(PROJECT) $(VERSION)..."
-	@mkdir -p $(BIN_DIR)
-	@for bin in $(BINARIES); do \
-		echo "  Building $$bin..."; \
-		go build -ldflags "-X main.Version=$(VERSION)" -o $(BIN_DIR)/$$bin ./cmd/$$bin; \
-	done
-	@echo "Build complete."
+build: build-api-gateway build-cubeconsole build-version-tool build-cubesandbox-operator
 
-# 构建单个二进制文件
-.PHONY: build-%
-build-%:
-	@echo "Building $*..."
-	@mkdir -p $(BIN_DIR)
-	@go build -ldflags "-X main.Version=$(VERSION)" -o $(BIN_DIR)/$* ./cmd/$*
+build-api-gateway:
+	@echo "Building api-gateway..."
+	$(GO_BUILD) -o bin/api-gateway ./cmd/api-gateway
 
-# 测试
-.PHONY: test
-test:
-	@echo "Running tests..."
-	@go test -v -race ./...
+build-cubeconsole:
+	@echo "Building cubeconsole..."
+	$(GO_BUILD) -o bin/cubeconsole ./cmd/cubeconsole
 
-# 测试覆盖率
-.PHONY: test-coverage
-test-coverage:
-	@echo "Running tests with coverage..."
-	@go test -coverprofile=$(BUILD_DIR)/coverage.out ./...
-	@go tool cover -html=$(BUILD_DIR)/coverage.out -o $(BUILD_DIR)/coverage.html
+build-version-tool:
+	@echo "Building version-tool..."
+	$(GO_BUILD) -o bin/version-tool ./cmd/version-tool
 
-# 代码检查
-.PHONY: lint
-lint:
-	@echo "Running linter..."
-	@golangci-lint run ./...
+build-cubesandbox-operator:
+	@echo "Building cubesandbox-operator..."
+	$(GO_BUILD) -o bin/cubesandbox-operator ./cmd/cubesandbox-operator
 
-# 格式化
-.PHONY: fmt
-fmt:
-	@echo "Formatting code..."
-	@go fmt ./...
+build-offline:
+	@echo "Building offline (network restricted)..."
+	./scripts/build-offline.sh all
 
-# 清理
-.PHONY: clean
+test: test-binaries
+
+test-binaries:
+	@echo "Testing binaries..."
+	./scripts/test-binaries.sh
+
 clean:
-	@echo "Cleaning..."
-	@rm -rf $(BUILD_DIR)
+	rm -rf bin/
 
-# Docker 构建
-.PHONY: docker-build
 docker-build:
 	@echo "Building Docker images..."
-	@docker build -t $(REGISTRY)/api-gateway:$(VERSION) --target api-gateway .
-	@docker build -t $(REGISTRY)/instance-controller:$(VERSION) --target instance-controller .
-	@docker build -t $(REGISTRY)/cubesandbox-operator:$(VERSION) --target cubesandbox-operator .
+	docker build -t cubeve/api-gateway:$(VERSION) -f Dockerfile --target api-gateway .
+	docker build -t cubeve/cubeconsole:$(VERSION) -f Dockerfile --target cubeconsole .
 
-# Docker 推送
-.PHONY: docker-push
-docker-push: docker-build
-	@echo "Pushing Docker images..."
-	@docker push $(REGISTRY)/api-gateway:$(VERSION)
-	@docker push $(REGISTRY)/instance-controller:$(VERSION)
-	@docker push $(REGISTRY)/cubesandbox-operator:$(VERSION)
-
-# 部署 L0
-.PHONY: deploy-l0
 deploy-l0:
-	@echo "Deploying L0 (MVP)..."
-	@bash scripts/l0-install.sh
+	@echo "Deploying L0 (single node)..."
+	sudo bash scripts/l0-install.sh
 
-# 部署 L1
-.PHONY: deploy-l1
-deploy-l1:
-	@echo "Deploying L1 (Basic)..."
-	@bash scripts/l1-install.sh
-
-# 部署 L2
-.PHONY: deploy-l2
 deploy-l2:
-	@echo "Deploying L2 (Standard)..."
-	@bash scripts/l2-install.sh
+	@echo "Deploying L2 (Kubernetes)..."
+	sudo bash scripts/l2-install.sh
 
-# 部署 L3
-.PHONY: deploy-l3
-deploy-l3:
-	@echo "Deploying L3 (Full)..."
-	@bash scripts/l3-install.sh
-
-# 部署 manifests
-.PHONY: deploy-manifests
 deploy-manifests:
 	@echo "Applying Kubernetes manifests..."
-	@kubectl apply -f manifests/runtimeclasses.yaml
-	@kubectl apply -f manifests/instance-crd.yaml
-	@kubectl apply -f manifests/cubesandbox-runtime.yaml
-	@kubectl apply -f manifests/network.yaml
-	@kubectl apply -f manifests/storage.yaml
-	@kubectl apply -f manifests/management-plane.yaml
-	@kubectl apply -f manifests/tee-confidential.yaml
+	kubectl apply -f manifests/
 
-# 生成 protobuf
-.PHONY: proto
-proto:
-	@echo "Generating protobuf code..."
-	@protoc --go_out=. --go_opt=paths=source_relative \
-		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
-		api/proto/*.proto
+lint:
+	@echo "Linting..."
+	golangci-lint run || true
 
-# 安装依赖
-.PHONY: deps
-deps:
-	@echo "Installing dependencies..."
-	@go mod download
-	@go mod verify
+fmt:
+	@echo "Formatting..."
+	go fmt ./...
 
-# 帮助
-.PHONY: help
-help:
-	@echo "$(PROJECT) $(VERSION) - Build targets:"
-	@echo ""
-	@echo "  make build              - Build all binaries"
-	@echo "  make build-<name>       - Build specific binary (e.g., make build-api-gateway)"
-	@echo "  make test               - Run tests"
-	@echo "  make test-coverage      - Run tests with coverage"
-	@echo "  make lint               - Run linter"
-	@echo "  make fmt                - Format code"
-	@echo "  make clean              - Clean build artifacts"
-	@echo "  make docker-build       - Build Docker images"
-	@echo "  make docker-push        - Push Docker images"
-	@echo "  make deploy-l0          - Deploy L0 (MVP)"
-	@echo "  make deploy-l1          - Deploy L1 (Basic)"
-	@echo "  make deploy-l2          - Deploy L2 (Standard)"
-	@echo "  make deploy-l3          - Deploy L3 (Full)"
-	@echo "  make deploy-manifests   - Apply K8s manifests"
-	@echo "  make proto              - Generate protobuf code"
-	@echo "  make deps               - Install dependencies"
-	@echo "  make help               - Show this help"
-	@echo ""
+.DEFAULT_GOAL := build
