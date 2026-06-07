@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*.*.*'
 
 jobs:
   build:
@@ -15,20 +15,35 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.22'
+        cache: true
     
-    - name: Build binaries
+    - name: Build all binaries
+      run: make build
+    
+    - name: Test binaries
+      run: make test
+    
+    - name: Package binaries
       run: |
-        make build
-        mkdir -p dist
-        cp build/bin/* dist/
-    
-    - name: Build Docker images
-      run: make docker-build
+        tar -czf cubeve-binaries-linux-amd64.tar.gz -C bin/ .
+        zip -j cubeve-binaries-linux-amd64.zip bin/*
     
     - name: Create Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: dist/*
-        generate_release_notes: true
+      uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+    
+    - name: Upload Release Assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./cubeve-binaries-linux-amd64.tar.gz
+        asset_name: cubeve-binaries-linux-amd64.tar.gz
+        asset_content_type: application/gzip
