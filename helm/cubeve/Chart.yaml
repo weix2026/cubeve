@@ -1,0 +1,32 @@
+apiVersion: v2
+name: cubeve
+description: CubeVE Virtual Infrastructure Platform
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - virtualization
+  - containers
+  - incus
+  - kata
+  - kubernetes
+home: https://github.com/weix2026/cubeve
+sources:
+  - https://github.com/weix2026/cubeve
+maintainers:
+  - name: CubeVE Team
+    email: cubeve@example.com
+
+# Dependencies
+dependencies:
+  - name: cilium
+    version: "1.15.0"
+    repository: "https://helm.cilium.io/"
+    condition: network.cilium.enabled
+    
+  - name: rook-ceph
+    version: "1.13.0"
+    repository: "https://charts.rook.io/release"
+    condition: storage.rook.enabled
+
+annotations:
+  category: Infrastructure

@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "cubeve.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "cubeve.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- if .Values.rbac.create }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "cubeve.name" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "cubeve.name" . }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "services", "endpoints", "persistentvolumes", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "daemonsets", "replicasets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["cubeve.io"]
+    resources: ["instances", "instances/status", "runtimeclasses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["node.k8s.io"]
+    resources: ["runtimeclasses"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "cubeve.name" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "cubeve.name" . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "cubeve.name" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "cubeve.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

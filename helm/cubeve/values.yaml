@@ -1,0 +1,87 @@
+# Default values for cubeve
+# This is a YAML-formatted file
+
+replicaCount: 1
+
+image:
+  repository: cubeve
+  tag: latest
+  pullPolicy: IfNotPresent
+
+apiGateway:
+  enabled: true
+  replicas: 2
+  service:
+    type: LoadBalancer
+    port: 8080
+  metrics:
+    enabled: true
+    port: 9090
+
+instanceController:
+  enabled: true
+  replicas: 1
+  leaderElection: true
+  watchNamespace: ""
+
+cubeSandboxOperator:
+  enabled: true
+  replicas: 1
+  poolSize: 2000
+  prewarm: true
+
+webUI:
+  enabled: true
+  replicas: 1
+  ingress:
+    enabled: true
+    className: nginx
+    hosts:
+      - host: cubeve.local
+        paths:
+          - path: /
+            pathType: Prefix
+
+network:
+  cilium:
+    enabled: true
+  ovn:
+    enabled: false
+
+storage:
+  rook:
+    enabled: true
+  ceph:
+    enabled: true
+
+tee:
+  enabled: false
+  coco:
+    enabled: false
+
+# RBAC
+rbac:
+  create: true
+
+# Service Account
+serviceAccount:
+  create: true
+  name: cubeve
+
+# Resources
+resources:
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
