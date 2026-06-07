@@ -247,7 +247,8 @@ Subcommands:
 				fmt.Printf("%-20s\t%s\t%s\t\t-\t\t-\n", name, status, instType)
 			}
 		}
-		fmt.Printf("\nTotal: %d instances\n", data["count"])
+		count, _ := data["count"]
+		fmt.Printf("\nTotal: %v instances\n", count)
 
 	case "start", "stop", "restart", "delete":
 		if len(args) < 2 {
