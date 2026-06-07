@@ -1,0 +1,337 @@
+syntax = "proto3";
+
+package cubeve.api.v1;
+
+option go_package = "github.com/weix2026/cubeve/api/proto";
+
+import "google/protobuf/empty.proto";
+
+// CubeAPI service definition
+service CubeAPI {
+  // Instance operations
+  rpc ListInstances(ListInstancesRequest) returns (ListInstancesResponse);
+  rpc CreateInstance(CreateInstanceRequest) returns (Instance);
+  rpc GetInstance(GetInstanceRequest) returns (Instance);
+  rpc DeleteInstance(DeleteInstanceRequest) returns (google.protobuf.Empty);
+  rpc StartInstance(StartInstanceRequest) returns (Instance);
+  rpc StopInstance(StopInstanceRequest) returns (Instance);
+  rpc RestartInstance(RestartInstanceRequest) returns (Instance);
+  
+  // Snapshot operations
+  rpc CreateSnapshot(CreateSnapshotRequest) returns (Snapshot);
+  rpc ListSnapshots(ListSnapshotsRequest) returns (ListSnapshotsResponse);
+  rpc RestoreSnapshot(RestoreSnapshotRequest) returns (Instance);
+  rpc DeleteSnapshot(DeleteSnapshotRequest) returns (google.protobuf.Empty);
+  
+  // Migration and console
+  rpc MigrateInstance(MigrateInstanceRequest) returns (Operation);
+  rpc GetConsole(GetConsoleRequest) returns (Console);
+  rpc ExecInstance(ExecInstanceRequest) returns (ExecResult);
+  
+  // Storage operations
+  rpc ListStoragePools(ListStoragePoolsRequest) returns (ListStoragePoolsResponse);
+  rpc CreateStoragePool(CreateStoragePoolRequest) returns (StoragePool);
+  rpc GetStoragePool(GetStoragePoolRequest) returns (StoragePool);
+  rpc DeleteStoragePool(DeleteStoragePoolRequest) returns (google.protobuf.Empty);
+  
+  // Network operations
+  rpc ListNetworks(ListNetworksRequest) returns (ListNetworksResponse);
+  rpc CreateNetwork(CreateNetworkRequest) returns (Network);
+  rpc GetNetwork(GetNetworkRequest) returns (Network);
+  rpc DeleteNetwork(DeleteNetworkRequest) returns (google.protobuf.Empty);
+  
+  // Profile operations
+  rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse);
+  rpc CreateProfile(CreateProfileRequest) returns (Profile);
+  rpc GetProfile(GetProfileRequest) returns (Profile);
+  rpc DeleteProfile(DeleteProfileRequest) returns (google.protobuf.Empty);
+  
+  // Cluster operations
+  rpc ListClusterMembers(ListClusterMembersRequest) returns (ListClusterMembersResponse);
+  rpc AddClusterMember(AddClusterMemberRequest) returns (Operation);
+  rpc RemoveClusterMember(RemoveClusterMemberRequest) returns (google.protobuf.Empty);
+  rpc EvacuateMember(EvacuateMemberRequest) returns (Operation);
+  rpc RestoreMember(RestoreMemberRequest) returns (Operation);
+  
+  // Operation management
+  rpc ListOperations(ListOperationsRequest) returns (ListOperationsResponse);
+  rpc GetOperation(GetOperationRequest) returns (Operation);
+  rpc CancelOperation(CancelOperationRequest) returns (google.protobuf.Empty);
+}
+
+// Instance messages
+message Instance {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+  string type = 4;
+  string runtime = 5;
+  string node = 6;
+  string ip = 7;
+  string internal_ip = 8;
+  string public_ip = 9;
+  string created_at = 10;
+  string started_at = 11;
+  string uptime = 12;
+  int32 restarts = 13;
+  map<string, string> config = 14;
+  map<string, Device> devices = 15;
+}
+
+message Device {
+  string type = 1;
+  map<string, string> properties = 2;
+}
+
+message ListInstancesRequest {
+  string runtime = 1;
+  string state = 2;
+  string node = 3;
+}
+
+message ListInstancesResponse {
+  repeated Instance instances = 1;
+  int32 count = 2;
+}
+
+message CreateInstanceRequest {
+  string name = 1;
+  string runtime = 2;
+  string image = 3;
+  string type = 4;
+  string cpu = 5;
+  string memory = 6;
+  string storage = 7;
+  string network = 8;
+  string profile = 9;
+  bool auto_start = 10;
+  map<string, string> config = 11;
+}
+
+message GetInstanceRequest {
+  string id = 1;
+}
+
+message DeleteInstanceRequest {
+  string id = 1;
+}
+
+message StartInstanceRequest {
+  string id = 1;
+}
+
+message StopInstanceRequest {
+  string id = 1;
+  bool force = 2;
+}
+
+message RestartInstanceRequest {
+  string id = 1;
+}
+
+// Snapshot messages
+message Snapshot {
+  string id = 1;
+  string name = 2;
+  string instance = 3;
+  string status = 4;
+  string created_at = 5;
+  bool stateful = 6;
+}
+
+message CreateSnapshotRequest {
+  string instance_id = 1;
+  string name = 2;
+  bool stateful = 3;
+}
+
+message ListSnapshotsRequest {
+  string instance_id = 1;
+}
+
+message ListSnapshotsResponse {
+  repeated Snapshot snapshots = 1;
+}
+
+message RestoreSnapshotRequest {
+  string instance_id = 1;
+  string snapshot_id = 2;
+}
+
+message DeleteSnapshotRequest {
+  string instance_id = 1;
+  string snapshot_id = 2;
+}
+
+// Migration and console messages
+message MigrateInstanceRequest {
+  string id = 1;
+  string target = 2;
+  bool live = 3;
+}
+
+message GetConsoleRequest {
+  string instance_id = 1;
+}
+
+message Console {
+  string instance = 1;
+  string url = 2;
+  string type = 3;
+}
+
+message ExecInstanceRequest {
+  string instance_id = 1;
+  repeated string command = 2;
+  bool interactive = 3;
+  bool wait_for_websocket = 4;
+}
+
+message ExecResult {
+  string instance = 1;
+  string output = 2;
+  int32 exit_code = 3;
+}
+
+// Storage messages
+message StoragePool {
+  string name = 1;
+  string driver = 2;
+  string status = 3;
+  map<string, string> config = 4;
+}
+
+message ListStoragePoolsRequest {}
+
+message ListStoragePoolsResponse {
+  repeated StoragePool pools = 1;
+}
+
+message CreateStoragePoolRequest {
+  string name = 1;
+  string driver = 2;
+  map<string, string> config = 3;
+}
+
+message GetStoragePoolRequest {
+  string name = 1;
+}
+
+message DeleteStoragePoolRequest {
+  string name = 1;
+}
+
+// Network messages
+message Network {
+  string name = 1;
+  string type = 2;
+  string status = 3;
+  map<string, string> config = 4;
+}
+
+message ListNetworksRequest {}
+
+message ListNetworksResponse {
+  repeated Network networks = 1;
+}
+
+message CreateNetworkRequest {
+  string name = 1;
+  string type = 2;
+  map<string, string> config = 3;
+}
+
+message GetNetworkRequest {
+  string name = 1;
+}
+
+message DeleteNetworkRequest {
+  string name = 1;
+}
+
+// Profile messages
+message Profile {
+  string name = 1;
+  string status = 2;
+  map<string, string> config = 3;
+  map<string, Device> devices = 4;
+}
+
+message ListProfilesRequest {}
+
+message ListProfilesResponse {
+  repeated Profile profiles = 1;
+}
+
+message CreateProfileRequest {
+  string name = 1;
+  map<string, string> config = 2;
+  map<string, Device> devices = 3;
+}
+
+message GetProfileRequest {
+  string name = 1;
+}
+
+message DeleteProfileRequest {
+  string name = 1;
+}
+
+// Cluster messages
+message ClusterMember {
+  string name = 1;
+  string address = 2;
+  string status = 3;
+  string role = 4;
+  string message = 5;
+}
+
+message ListClusterMembersRequest {}
+
+message ListClusterMembersResponse {
+  repeated ClusterMember members = 1;
+}
+
+message AddClusterMemberRequest {
+  string name = 1;
+  string address = 2;
+  string token = 3;
+}
+
+message RemoveClusterMemberRequest {
+  string name = 1;
+}
+
+message EvacuateMemberRequest {
+  string name = 1;
+}
+
+message RestoreMemberRequest {
+  string name = 1;
+}
+
+// Operation messages
+message Operation {
+  string id = 1;
+  string status = 2;
+  string type = 3;
+  string description = 4;
+  string created_at = 5;
+  string completed_at = 6;
+  int32 progress = 7;
+  map<string, string> metadata = 8;
+}
+
+message ListOperationsRequest {}
+
+message ListOperationsResponse {
+  repeated Operation operations = 1;
+}
+
+message GetOperationRequest {
+  string id = 1;
+}
+
+message CancelOperationRequest {
+  string id = 1;
+}
