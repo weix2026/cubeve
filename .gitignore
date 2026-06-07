@@ -8,3 +8,27 @@ github_ssh
 # OpenClaw specific
 .openclaw/
 memory_consolidation/
+
+# Go build artifacts
+/build/
+/bin/
+/dist/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
