@@ -1,0 +1,10 @@
+# Keys and secrets
+*.asc
+github_ssh
+*.pem
+*.key
+.env
+
+# OpenClaw specific
+.openclaw/
+memory_consolidation/
