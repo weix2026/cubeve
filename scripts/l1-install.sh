@@ -230,7 +230,7 @@ harden_security() {
     incus profile set default security.syscalls.intercept.setxattr=true
     
     # 容器安全策略
-    cat > /etc/apparmor.d/local/incus-containers <> 'EOF'
+    cat > /etc/apparmor.d/local/incus-containers << 'APPARMOR_EOF'
 # Incus 容器额外限制
 profile incus-container-extra flags=(attach_disconnected,mediate_deleted) {
   # 限制 /proc 和 /sys 访问
@@ -242,7 +242,7 @@ profile incus-container-extra flags=(attach_disconnected,mediate_deleted) {
   deny capability sys_admin,
   deny capability sys_ptrace,
 }
-EOF
+APPARMOR_EOF
     
     apparmor_parser -r /etc/apparmor.d/local/incus-containers || true
     
