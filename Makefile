@@ -35,11 +35,29 @@ build-offline:
 	@echo "Building offline (network restricted)..."
 	./scripts/build-offline.sh all
 
-test: test-binaries
+test: test-binaries test-scripts test-l0-api
 
 test-binaries:
-	@echo "Testing binaries..."
+	@echo "Testing binary builds..."
 	./scripts/test-binaries.sh
+
+test-scripts:
+	@echo "Validating script syntax..."
+	./scripts/validate-scripts.sh
+
+test-l0-api:
+	@echo "Running L0 API integration tests..."
+	./scripts/test-l0-api.sh
+
+test-integration: test-l0-api
+	@echo "All integration tests passed"
+
+regression-test: build test
+	@echo "Running full regression test suite..."
+	@echo "1. Binary builds: ✅"
+	@echo "2. Script validation: ✅"
+	@echo "3. L0 API integration: ✅"
+	@echo "All tests passed!"
 
 clean:
 	rm -rf bin/
