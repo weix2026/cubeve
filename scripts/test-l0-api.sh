@@ -72,7 +72,7 @@ echo "Instance Operations"
 echo "-------------------"
 run_test "List instances" GET "/instances" "" "count"
 run_test "Get instance" GET "/instances/zfs-test" "" "name"
-run_test "Create instance" POST "/instances" '{"name":"test-api-ct","source":{"type":"image","alias":"ubuntu/24.04"},"config":{},"type":"container"}' "created"
+run_test "Create instance" POST "/instances" '{"name":"test-api-ct-'$(date +%s)'","source":{"type":"image","fingerprint":"","alias":"ubuntu/24.04","server":"https://images.linuxcontainers.org","protocol":"simplestreams","mode":"pull"},"config":{},"type":"container"}' "created"
 
 echo ""
 echo "Storage Operations"
