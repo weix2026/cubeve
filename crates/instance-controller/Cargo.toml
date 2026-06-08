@@ -1,0 +1,26 @@
+[package]
+name = "cubeve-instance-controller"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Workspace deps
+tokio = { workspace = true }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+
+# K8s (when network available - stub for now)
+# kube = { workspace = true }
+# k8s-openapi = { workspace = true }
+
+# Controller specific
+futures = "0.3"

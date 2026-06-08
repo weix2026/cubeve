@@ -1,0 +1,35 @@
+# Rust Workspace Build Targets
+
+.PHONY: rust-build rust-check rust-test rust-clean rust-version
+
+rust-version:
+	@echo "Rust version:"
+	@rustc --version
+	@cargo --version
+
+rust-check:
+	@echo "Checking Rust workspace..."
+	cargo check --workspace
+
+rust-build:
+	@echo "Building Rust workspace..."
+	cargo build --workspace --release
+
+rust-test:
+	@echo "Testing Rust workspace..."
+	cargo test --workspace
+
+rust-clean:
+	@echo "Cleaning Rust build artifacts..."
+	cargo clean
+	@rm -rf target/
+
+# Individual crate builds
+rust-api-gateway:
+	cargo build -p cubeve-api-gateway --release
+
+rust-cubeconsole:
+	cargo build -p cubeve-cubeconsole --release
+
+rust-version-tool:
+	cargo build -p cubeve-version-tool --release

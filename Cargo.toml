@@ -1,0 +1,64 @@
+[workspace]
+members = [
+    "crates/api-gateway",
+    "crates/cubeconsole",
+    "crates/cubesandbox-operator",
+    "crates/instance-controller",
+    "crates/version-tool",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["CubeVE Team"]
+license = "Apache-2.0"
+repository = "https://github.com/weix2026/cubeve"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# HTTP / Web
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+hyper = { version = "1.0", features = ["full"] }
+hyper-util = "0.1"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# gRPC
+tonic = "0.11"
+prost = "0.12"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# CLI
+clap = { version = "4.4", features = ["derive"] }
+
+# Logging / Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Metrics
+prometheus = "0.13"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# K8s (when network available)
+# kube = { version = "0.87", features = ["runtime", "derive"] }
+# k8s-openapi = { version = "0.21", features = ["v1_30"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Utils
+uuid = { version = "1.6", features = ["v4", "serde"] }
+once_cell = "1.19"
