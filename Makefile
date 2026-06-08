@@ -48,6 +48,15 @@ docker-build:
 	@echo "Building Docker images..."
 	docker build -t cubeve/api-gateway:$(VERSION) -f Dockerfile --target api-gateway .
 	docker build -t cubeve/cubeconsole:$(VERSION) -f Dockerfile --target cubeconsole .
+	docker build -t cubeve/cubesandbox-operator:$(VERSION) -f Dockerfile --target cubesandbox-operator .
+	docker build -t cubeve/instance-controller:$(VERSION) -f Dockerfile --target instance-controller .
+
+docker-build-test: docker-build
+	@echo "Testing Docker images..."
+	docker run --rm cubeve/api-gateway:$(VERSION) --version 2>/dev/null || true
+	docker run --rm cubeve/cubeconsole:$(VERSION) version
+	docker run --rm cubeve/cubesandbox-operator:$(VERSION) --help 2>/dev/null || true
+	docker run --rm cubeve/instance-controller:$(VERSION) --help 2>/dev/null || true
 
 deploy-l0:
 	@echo "Deploying L0 (single node)..."

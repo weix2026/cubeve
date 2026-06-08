@@ -16,14 +16,15 @@ COPY . .
 ENV GOSUMDB=off
 ENV GOPROXY=off
 
-# Build components that work offline
+# Build all components that work offline
 RUN go build -mod=mod -ldflags="-w -s" -o /app/bin/api-gateway ./cmd/api-gateway && \
     go build -mod=mod -ldflags="-w -s" -o /app/bin/cubeconsole ./cmd/cubeconsole && \
     go build -mod=mod -ldflags="-w -s" -o /app/bin/version-tool ./cmd/version-tool && \
-    go build -mod=mod -ldflags="-w -s" -o /app/bin/cubesandbox-operator ./cmd/cubesandbox-operator
+    go build -mod=mod -ldflags="-w -s" -o /app/bin/cubesandbox-operator ./cmd/cubesandbox-operator && \
+    go build -mod=mod -ldflags="-w -s" -o /app/bin/instance-controller ./cmd/instance-controller
 
-# Note: instance-controller requires network access for K8s dependencies
-# Build it separately in environments with full network access
+# Note: instance-controller is built as stub version (no K8s deps)
+# When network is available, rebuild with full K8s controller-runtime
 
 # Runtime image for API Gateway
 FROM alpine:3.19 AS api-gateway
@@ -74,3 +75,22 @@ USER cubeve
 
 ENTRYPOINT ["/usr/local/bin/cubesandbox-operator"]
 CMD ["--help"]
+
+# Runtime image for Instance Controller
+FROM alpine:3.19 AS instance-controller
+
+RUN apk add --no-cache ca-certificates tzdata
+RUN adduser -D -u 1000 cubeve
+
+WORKDIR /app
+
+COPY --from=builder /app/bin/instance-controller /usr/local/bin/instance-controller
+
+USER cubeve
+EXPOSE 8081
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8081/healthz || exit 1
+
+ENTRYPOINT ["/usr/local/bin/instance-controller"]
+CMD ["--listen=:8081", "--api-gateway=http://localhost:8080"]
