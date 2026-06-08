@@ -1,0 +1,33 @@
+[package]
+name = "cubeve-orchestrator"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Workspace deps
+tokio = { workspace = true }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+once_cell = { workspace = true }
+
+# Orchestrator specific
+# kube = { workspace = true }  # 当网络可用时
+# k8s-openapi = { workspace = true }
+
+# HTTP client for calling other services
+reqwest = { workspace = true }
+
+# Scheduling
+priority-queue = "1.3"
+
+[dev-dependencies]
+tokio-test = "0.4"

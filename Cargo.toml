@@ -1,9 +1,9 @@
 [workspace]
 members = [
-    "crates/api-gateway",
+    "crates/api-gateway", "crates/cloud-hypervisor",
     "crates/cubeconsole",
     "crates/cubesandbox-operator",
-    "crates/instance-controller",
+    "crates/instance-controller", "crates/orchestrator",
     "crates/version-tool",
 ]
 resolver = "2"

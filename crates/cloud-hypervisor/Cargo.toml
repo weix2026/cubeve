@@ -1,0 +1,32 @@
+[package]
+name = "cubeve-cloud-hypervisor"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Workspace deps
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+
+# Cloud Hypervisor specific
+# vmm = { path = "../cloud-hypervisor/vmm" } # 当子模块可用时
+# vm-allocator = { path = "../cloud-hypervisor/vm-allocator" }
+# virtio-devices = { path = "../cloud-hypervisor/virtio-devices" }
+
+# 替代：HTTP API 控制接口（Cloud Hypervisor 提供 REST API）
+reqwest = { workspace = true }
+
+# VM 管理
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
