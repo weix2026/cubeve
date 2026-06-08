@@ -166,11 +166,7 @@ func listInstances(c *gin.Context) {
 }
 
 func createInstance(c *gin.Context) {
-	var req struct {
-		Name   string                 `json:"name"`
-		Image  string                 `json:"image"`
-		Config map[string]interface{} `json:"config"`
-	}
+	var req map[string]interface{}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -179,13 +175,13 @@ func createInstance(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := incusClient.CreateInstance(ctx, req.Config); err != nil {
+	if err := incusClient.CreateInstance(ctx, req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"id":     req.Name,
+		"id":     req["name"],
 		"status": "created",
 	})
 }
